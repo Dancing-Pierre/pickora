@@ -1,14 +1,11 @@
 export type ChoiceSource = 'manual' | 'food' | 'play' | 'movie'
 
-export type ChoiceSession = {
+export type ChoiceCardSet = {
   id: string
   source: ChoiceSource
   sourceLabel: string
   options: string[]
   aiGenerated: boolean
-  finalResult: string
-  drawCount: number
-  redrawCount: number
   createdAt: string
 }
 

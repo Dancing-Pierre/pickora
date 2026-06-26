@@ -1,29 +1,82 @@
 import { ref } from 'vue'
-import type { ChoiceSession } from '../types/choice'
+import type { ChoiceCardSet, ChoiceSource } from '../types/choice'
 
 const STORAGE_KEY = 'pickora:history:v1'
 const MAX_HISTORY = 5
+const SIGNATURE_SEPARATOR = '::'
 
-function readHistory(): ChoiceSession[] {
+type StoredCardSet = Partial<ChoiceCardSet> & {
+  finalResult?: string
+  drawCount?: number
+  redrawCount?: number
+}
+
+export function createCardSetSignature(source: ChoiceSource, options: string[]): string {
+  return `${source}|${options.join(SIGNATURE_SEPARATOR)}`
+}
+
+function isChoiceSource(value: unknown): value is ChoiceSource {
+  return value === 'manual' || value === 'food' || value === 'play' || value === 'movie'
+}
+
+function createId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
+}
+
+function normalizeStoredCardSet(value: unknown): ChoiceCardSet | null {
+  if (!value || typeof value !== 'object') return null
+
+  const item = value as StoredCardSet
+  const options = Array.isArray(item.options)
+    ? item.options
+        .filter((option): option is string => typeof option === 'string')
+        .map((option) => option.trim())
+        .filter(Boolean)
+    : []
+  if (!options.length) return null
+  if (!isChoiceSource(item.source) || !item.sourceLabel) return null
+
+  return {
+    id: typeof item.id === 'string' ? item.id : createId(),
+    source: item.source,
+    sourceLabel: item.sourceLabel,
+    options,
+    aiGenerated: Boolean(item.aiGenerated),
+    createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString()
+  }
+}
+
+function readHistory(): ChoiceCardSet[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.slice(0, MAX_HISTORY) : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(normalizeStoredCardSet).filter((item): item is ChoiceCardSet => Boolean(item)).slice(0, MAX_HISTORY)
   } catch {
     return []
   }
 }
 
-function writeHistory(history: ChoiceSession[]) {
+function writeHistory(history: ChoiceCardSet[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)))
 }
 
 export function useChoiceHistory() {
-  const history = ref<ChoiceSession[]>(readHistory())
+  const history = ref<ChoiceCardSet[]>(readHistory())
 
-  function addSession(session: ChoiceSession) {
-    history.value = [session, ...history.value].slice(0, MAX_HISTORY)
+  function addCardSet(cardSet: Omit<ChoiceCardSet, 'id' | 'createdAt'>) {
+    const signature = createCardSetSignature(cardSet.source, cardSet.options)
+    const existing = history.value.find((item) => createCardSetSignature(item.source, item.options) === signature)
+    const next: ChoiceCardSet = existing
+      ? { ...existing, ...cardSet }
+      : {
+          ...cardSet,
+          id: createId(),
+          createdAt: new Date().toISOString()
+        }
+
+    history.value = [next, ...history.value.filter((item) => createCardSetSignature(item.source, item.options) !== signature)].slice(0, MAX_HISTORY)
     writeHistory(history.value)
   }
 
@@ -34,7 +87,7 @@ export function useChoiceHistory() {
 
   return {
     history,
-    addSession,
+    addCardSet,
     clearHistory
   }
 }
