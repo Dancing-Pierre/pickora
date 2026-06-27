@@ -9,7 +9,7 @@ services:
       dockerfile: api/Dockerfile
     restart: unless-stopped
     ports:
-      - "8003:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen-turbo}

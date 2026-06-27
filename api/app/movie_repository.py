@@ -7,8 +7,8 @@ from fastapi import HTTPException, status
 from .config import Settings
 from .schemas import MovieOptionItem
 
-MOVIE_UNAVAILABLE_DETAIL = "生成服务暂时不可用，可以先手动输入选项。"
-MOVIE_NOT_ENOUGH_DETAIL = "当前可用选项不足 6 个，可以先手动输入选项。"
+MOVIE_UNAVAILABLE_DETAIL = "电影数据暂时不可用，可以先手动输入选项。"
+MOVIE_NOT_ENOUGH_DETAIL = "当前可用电影不足 6 部，可以先手动输入选项。"
 
 MOVIE_QUERY = """
 SELECT movieid, name, detail_url, poster, type, actors, release_date, score
