@@ -69,3 +69,37 @@ Implemented compact one-screen Pickora card draw UX with manual flip, shuffle re
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: 完成电影数据库与前端优化
+
+**Date**: 2026-06-27
+**Task**: 完成电影数据库与前端优化
+**Branch**: `main`
+
+### Summary
+
+完成看什么电影数据库抽取与喝什么 AI 分类；迁移网站 favicon/logo 到前端静态资源，限制移动端卡牌扇形展开不越界，并清理根级 .env.example。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5037785` | (see git log) |
+| `c4801dc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
