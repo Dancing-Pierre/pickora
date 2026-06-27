@@ -71,6 +71,22 @@ button {
   border-radius: 24px;
 }
 
+.brand-lockup {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-logo {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  object-fit: contain;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+}
+
 .eyebrow {
   display: inline-flex;
   margin: 0 0 5px;
@@ -735,6 +751,19 @@ h1 {
     padding: 13px 14px;
   }
 
+  .site-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .choice-card:not(.locked):not(:disabled):hover {
+    transform:
+      translate(calc(var(--card-x) + var(--shuffle-x)), calc(var(--card-y) + var(--shuffle-y) - 6px))
+      rotate(calc(var(--card-rotate) + var(--shuffle-rotate)))
+      scale(1.02);
+  }
+
   h1 {
     font-size: clamp(24px, 7.8vw, 31px);
   }
@@ -802,6 +831,16 @@ h1 {
 @media (max-width: 380px) {
   .hero-copy {
     display: none;
+  }
+
+  .site-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .brand-lockup {
+    gap: 7px;
   }
 
   .quick-heading {

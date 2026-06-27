@@ -1,9 +1,12 @@
 <template>
   <main class="app-shell">
     <section class="hero-card compact-hero">
-      <div>
-        <p class="eyebrow">一念 · 选择抽卡机</p>
-        <h1>一念之间，抽一张。</h1>
+      <div class="brand-lockup">
+        <img class="site-logo" src="/logo.png" alt="一念 Logo" />
+        <div>
+          <p class="eyebrow">一念 · 选择抽卡机</p>
+          <h1>一念之间，抽一张。</h1>
+        </div>
       </div>
       <p class="hero-copy">选一组卡，凭手感翻开今天的答案。</p>
     </section>
@@ -364,8 +367,17 @@ function getCardStyle(index: number, total: number): StyleValue {
   const rowCount = rowIndex === 0 ? firstRowCount : total - firstRowCount
   const localIndex = index - rowStart
   const center = (rowCount - 1) / 2
-  const rotationStep = twoRows ? 12 : Math.min(16, 78 / Math.max(rowCount - 1, 1))
-  const xStep = twoRows ? 42 : 46
+  const fanWidth = deckRef.value?.clientWidth ?? 0
+  const cardWidth = deckRef.value ? readCardNumber(deckRef.value, '--card-width') : 92
+  const cardHeight = deckRef.value ? readCardNumber(deckRef.value, '--card-height') : 146
+  const rotationStep = twoRows ? 12 : Math.min(14, 68 / Math.max(rowCount - 1, 1))
+  const edgeRotation = Math.abs(center * rotationStep)
+  const edgeRotationRadians = (edgeRotation * Math.PI) / 180
+  const rotatedEdgeWidth = Math.abs(cardWidth * Math.cos(edgeRotationRadians)) + Math.abs(cardHeight * Math.sin(edgeRotationRadians))
+  const safeFanWidth = Math.max(0, fanWidth - rotatedEdgeWidth)
+  const maxXStep = rowCount > 1 ? safeFanWidth / (rowCount - 1) : 0
+  const baseXStep = twoRows ? 42 : 46
+  const xStep = rowCount > 1 ? Math.min(baseXStep, maxXStep) : 0
   const rotate = (localIndex - center) * rotationStep + (twoRows ? (rowIndex === 0 ? -4 : 4) : 0)
   const x = (localIndex - center) * xStep
   const arc = Math.abs(localIndex - center) * (twoRows ? 5 : 8)

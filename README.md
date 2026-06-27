@@ -25,10 +25,9 @@
 ├── spider/              # 猫眼电影定时采集任务
 ├── .claude/             # Claude Code / Trellis 本地协作配置
 ├── .trellis/            # Trellis 任务、规格和工作流记录
-├── .env.example         # 根级环境变量示例（兼容保留）
 └── README.md
 ```
-真实配置文件已通过 `.gitignore` 排除。发布时请使用示例文件创建本地配置，不要提交真实密码。
+真实配置文件已通过 `.gitignore` 排除。发布时请使用各子项目的示例文件创建本地配置，不要提交真实密码。
 
 ## API 环境变量
 
@@ -42,6 +41,7 @@ cp .env.example .env
 填写：
 
 ```env
+API_PORT=8000
 DASHSCOPE_API_KEY=replace-with-your-dashscope-api-key
 DASHSCOPE_MODEL=qwen-turbo
 FRONTEND_ORIGIN=https://your-domain.example
@@ -97,7 +97,7 @@ docker compose up -d --build
 
 `api/docker-compose.yml` 会：
 
-- 暴露 `8000:8000`
+- 默认暴露 `8000:8000`，可通过 `API_PORT` 调整宿主机端口
 - 挂载外部 Docker 网络 `1panel-network`
 - 使用 `host.docker.internal:host-gateway` 保持与 spider 类似的主机访问方式
 
