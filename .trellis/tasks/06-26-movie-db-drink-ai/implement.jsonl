@@ -1,0 +1,10 @@
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Frontend file layout and single-page boundaries"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Vue SFC, icons, accessibility, and drawer/card UI conventions"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "History composable contract and localStorage boundary"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Reusable card-set history and card draw state conventions"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "TypeScript category/API/localStorage type safety"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Frontend validation and forbidden patterns"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Backend flat module layout and provider boundary"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Controlled backend error contract for AI/DB failures"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Public API fixed-category proxy and no-secret rules"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer API response and history metadata contract"}

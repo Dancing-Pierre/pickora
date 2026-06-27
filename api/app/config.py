@@ -14,6 +14,12 @@ class Settings:
             "DASHSCOPE_BASE_URL",
             "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
         ).strip()
+        self.mysql_host = getenv("MYSQL_HOST", "").strip()
+        self.mysql_port = _read_int("MYSQL_PORT", 3306)
+        self.mysql_user = getenv("MYSQL_USER", "").strip()
+        self.mysql_password = getenv("MYSQL_PASSWORD", "")
+        self.mysql_database = getenv("MYSQL_DATABASE", "").strip()
+        self.mysql_connect_timeout = _read_int("MYSQL_CONNECT_TIMEOUT", 5)
 
 
 def _read_int(name: str, default: int) -> int:

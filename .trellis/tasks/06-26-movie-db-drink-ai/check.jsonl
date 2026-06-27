@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify frontend build, API wrapper, and UI behavior"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Verify history metadata, dedup, and card state behavior"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Verify TypeScript category and metadata boundaries"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify fixed category contract, DB boundary, and no secrets"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify controlled AI/DB errors"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify response metadata round-trip and no contract drift"}

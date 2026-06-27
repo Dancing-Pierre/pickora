@@ -4,9 +4,11 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.requests import ClientDisconnect
+from starlette.concurrency import run_in_threadpool
 
 from .config import Settings, get_settings
 from .dashscope_client import generate_dashscope_options
+from .movie_repository import get_random_active_movies
 from .rate_limit import RateLimiter
 from .schemas import GenerateOptionsRequest, GenerateOptionsResponse
 
@@ -70,7 +72,15 @@ def create_app() -> FastAPI:
         if not limiter.allow(client_ip):
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="AI 生成太频繁了，稍等一下再试，或者先手动输入选项。",
+                detail="生成太频繁了，稍等一下再试，或者先手动输入选项。",
+            )
+
+        if payload.category == "movie":
+            movies = await run_in_threadpool(get_random_active_movies, current_settings)
+            return GenerateOptionsResponse(
+                category=payload.category,
+                options=[movie.label for movie in movies],
+                items=movies,
             )
 
         options = await generate_dashscope_options(payload.category, current_settings)

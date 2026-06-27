@@ -1,0 +1,27 @@
+networks:
+  1panel-network:
+    external: true
+
+services:
+  supervisor:
+    image: maoyan/spider:latest          # 用 Dockerfile 构建的自定义镜像（基于 python:3.12.7，已装依赖）
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: supervisor
+    container_name: supervisor
+    restart: always
+    ports:
+      - "9113:9001"
+    volumes:
+      - ./volumes/app/supervisor:/etc/supervisor
+      - ./volumes/supervisord.conf:/etc/supervisor/supervisord.conf
+      - ./volumes:/usr/src
+      - ./logs:/logs
+    environment:
+      TZ: Asia/Shanghai
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - 1panel-network
+    command: ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]

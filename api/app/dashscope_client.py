@@ -5,12 +5,55 @@ import httpx
 from fastapi import HTTPException, status
 
 from .config import Settings
-from .schemas import CATEGORY_LABELS, Category
+from .schemas import AI_CATEGORY_LABELS, AiCategory
+
+DRINK_BRANDS = [
+    "古茗",
+    "沪上阿姨",
+    "瑞幸",
+    "喜茶",
+    "奈雪的茶",
+    "蜜雪冰城",
+    "茶百道",
+    "一点点",
+    "霸王茶姬",
+    "茶颜悦色",
+    "阿嬷手作",
+    "茉莉奶白",
+    "快乐柠檬",
+    "厝内小眷村",
+    "鹿角巷",
+    "一芳水果茶",
+    "益禾堂",
+    "甜啦啦",
+    "7分甜",
+    "椿风",
+    "乐乐茶",
+    "伏小桃",
+    "和气桃桃",
+    "茶理宜世",
+    "茶话弄",
+    "霓裳茶舞",
+    "爷爷泡的茶",
+    "圆真真",
+    "兵之王",
+    "新时沏",
+    "黑泷堂",
+    "珍煮丹",
+    "丸摩堂",
+    "陈多多",
+    "吾饮良品",
+    "茶屿水果茶",
+    "挞柠",
+    "柠檬向右",
+    "巡茶",
+    "百分茶",
+]
 
 
-def build_prompt(category: Category) -> str:
-    label = CATEGORY_LABELS[category]
-    category_rules: dict[Category, str] = {
+def build_prompt(category: AiCategory) -> str:
+    label = AI_CATEGORY_LABELS[category]
+    category_rules: dict[AiCategory, str] = {
         "food": (
             "生成 6 个适合直接比较的中文候选。必须二选一：要么 6 个全是餐厅/品牌/店名，"
             "要么 6 个全是具体菜品/食物名；同一组里不要混合品牌和菜品。"
@@ -20,9 +63,10 @@ def build_prompt(category: Category) -> str:
             "生成 6 个具体可执行的中文候选，尽量是地点、活动或场景名，例如“密室逃脱”“电玩城”“江边散步”。"
             "不要写“出去玩”“随便逛逛”这类泛泛动作。"
         ),
-        "movie": (
-            "生成 6 个具体可选的中文候选，可以是电影/剧名、类型片单方向或观看选择，例如“悬疑片”“周星驰电影”“韩剧”。"
-            "不要写“看电影”“追剧”这类泛泛动作。"
+        "drink": (
+            "生成 6 个中文候选，只能是具体饮品品牌名，不要写品类、动作短语或自造词。"
+            f"品牌风格参考：{'、'.join(DRINK_BRANDS)}。"
+            "只返回可直接作为卡片的品牌名，不要写“喝奶茶”“喝咖啡”“喝果茶”这类动作或类别。"
         ),
     }
     return (
@@ -69,11 +113,11 @@ def parse_options(content: str) -> list[str]:
     return normalize_options(parts)
 
 
-async def generate_dashscope_options(category: Category, settings: Settings) -> list[str]:
+async def generate_dashscope_options(category: AiCategory, settings: Settings) -> list[str]:
     if not settings.dashscope_api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI 暂未配置，可以先手动输入选项。",
+            detail="生成服务暂未配置，可以先手动输入选项。",
         )
 
     payload = {
@@ -98,14 +142,14 @@ async def generate_dashscope_options(category: Category, settings: Settings) -> 
             response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code in {401, 403}:
-            detail = "AI 配置校验失败，请检查服务器环境变量。"
+            detail = "生成服务配置校验失败，请检查服务器环境变量。"
         else:
-            detail = "AI 服务暂时不可用，可以先手动输入选项。"
+            detail = "生成服务暂时不可用，可以先手动输入选项。"
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI 服务暂时不可用，可以先手动输入选项。",
+            detail="生成服务暂时不可用，可以先手动输入选项。",
         ) from exc
 
     data = response.json()
@@ -116,5 +160,5 @@ async def generate_dashscope_options(category: Category, settings: Settings) -> 
 
     raise HTTPException(
         status_code=status.HTTP_502_BAD_GATEWAY,
-        detail="AI 返回格式不正确，可以先手动输入选项。",
+        detail="返回格式不正确，可以先手动输入选项。",
     )

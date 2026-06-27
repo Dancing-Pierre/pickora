@@ -1,68 +1,66 @@
-# Pickora
+# 一念
 
-Pickora 是一个移动端优先的「选择抽卡机」网站：输入几个选项，或者点一个简单分类让 AI 生成 6 个候选，然后用卡牌抽取动画帮你快速做决定。
+一念是一个移动端优先的选择抽卡网站：当你不知道吃什么、喝什么、去哪玩、看什么时，先生成一组卡牌，再凭手感翻开一张。
 
-首版目标是简单、公开、可自部署：无登录、无数据库、本地保存最近 5 次完整选择记录。
+当前仓库根目录仍保留项目代号 `pickora`，对外产品名为「一念」。
 
 ## 功能
 
-- Vue 3 + Vite + TypeScript 单页应用
-- GSAP 游戏感卡牌洗牌 / 翻牌 / 高亮动画
-- 手动输入选项：支持粘贴文本解析，也支持逐个添加标签
-- 手动选项数量限制：最少 3 个，最多 12 个
-- AI 生成选项：固定支持 `吃什么`、`去哪玩`、`看什么剧/电影`
-- AI 每次返回 6 个候选项，然后进入抽卡
-- 重抽次数：`max(1, floor(卡牌数量 / 3))`
-- 重抽允许重复抽到之前结果
-- 最近 5 次完整会话保存在浏览器 `localStorage`
-- FastAPI 极小代理隐藏阿里百炼 / DashScope Key
-- 固定分类 allowlist + 每 IP 限流，降低无登录场景下的滥用风险
-- Docker Compose 自部署配置
-
-## 安全说明
-
-不要把真实 API Key 写进代码、README、提交历史或前端环境变量。
-
-DashScope Key 只应该配置在服务器环境变量 `DASHSCOPE_API_KEY` 中，并由 Python API 代理在服务端调用。前端只请求 `/api/generate-options`，不会也不应该拿到真实 Key。
-
-如果你的 Key 曾经在聊天、工单、截图或日志中暴露，请先去阿里百炼后台轮换 / 作废旧 Key，再部署本项目。
+- Vue 3 + Vite + TypeScript 单页前端
+- FastAPI 后端 API
+- 猫眼正在热映电影 spider 定时任务
+- 手动输入 3 到 12 个选项生成卡牌
+- `吃什么` / `去哪玩` / `喝什么` 通过固定分类生成候选
+- `看什么` 从 `maoyan_film` 表随机抽取 `state = 1` 的正在热映电影
+- 电影卡牌翻开后使用海报背景，并可再次点击查看详情
+- 最近 5 组卡牌保存在浏览器 `localStorage`
+- API 固定分类 allowlist、请求大小限制、每 IP 限流
 
 ## 目录结构
 
 ```text
 .
-├── api/                 # FastAPI AI 代理
-├── deploy/              # Nginx 配置
-├── frontend/            # Vue 单页应用
-├── docker-compose.yml   # 自部署编排
-├── .env.example         # 环境变量示例，不包含真实密钥
-├── LICENSE
+├── api/                 # FastAPI 后端，负责生成选项、读取电影表、隐藏服务端密钥
+├── frontend/            # Vue 前端，一念抽卡界面
+├── spider/              # 猫眼电影定时采集任务
+├── .claude/             # Claude Code / Trellis 本地协作配置
+├── .trellis/            # Trellis 任务、规格和工作流记录
+├── .env.example         # 根级环境变量示例（兼容保留）
 └── README.md
 ```
+真实配置文件已通过 `.gitignore` 排除。发布时请使用示例文件创建本地配置，不要提交真实密码。
 
-## 环境变量
+## API 环境变量
 
-复制 `.env.example` 为 `.env`，再填入你自己的值：
+API 独立部署时，在 `api/` 目录复制环境变量模板：
+
+```bash
+cd api
+cp .env.example .env
+```
+
+填写：
 
 ```env
 DASHSCOPE_API_KEY=replace-with-your-dashscope-api-key
 DASHSCOPE_MODEL=qwen-turbo
-FRONTEND_ORIGIN=https://pickora.ansion.top
+FRONTEND_ORIGIN=https://your-domain.example
 AI_RATE_LIMIT_PER_MINUTE=5
 AI_RATE_LIMIT_PER_HOUR=30
 MAX_REQUEST_BYTES=1024
+MYSQL_HOST=replace-with-your-mysql-host
+MYSQL_PORT=3306
+MYSQL_USER=replace-with-your-mysql-user
+MYSQL_PASSWORD=replace-with-your-mysql-password
+MYSQL_DATABASE=replace-with-your-mysql-database
+MYSQL_CONNECT_TIMEOUT=5
 ```
 
 说明：
 
-- `DASHSCOPE_API_KEY`：阿里百炼 / DashScope API Key。不要提交真实值。
-- `DASHSCOPE_MODEL`：默认 `qwen-turbo`。
-- `FRONTEND_ORIGIN`：生产环境允许访问 API 的前端域名。
-- `AI_RATE_LIMIT_PER_MINUTE`：每 IP 每分钟 AI 生成次数，默认 5。
-- `AI_RATE_LIMIT_PER_HOUR`：每 IP 每小时 AI 生成次数，默认 30。
-- `MAX_REQUEST_BYTES`：API 请求体大小限制，默认 1024 字节。
-
-如果没有配置 `DASHSCOPE_API_KEY`，手动抽卡仍然可用，AI 生成会提示暂未配置。
+- `DASHSCOPE_API_KEY` 只允许放在后端环境变量中，不要提交真实值。
+- `MYSQL_*` 用于读取 spider 已写入的 `maoyan_film` 表。
+- `看什么` 只抽取 `state = 1` 且 `name` 非空的电影；不足 6 条时返回受控错误。
 
 ## 本地开发
 
@@ -73,8 +71,6 @@ cd frontend
 npm install
 npm run dev
 ```
-
-前端开发服务默认会把 `/api` 代理到 `http://127.0.0.1:8000`。
 
 ### API
 
@@ -87,48 +83,69 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Docker Compose 部署
+## API Docker 部署
+
+API 只维护自己的后端容器，前端域名反向代理由外部服务处理。
 
 ```bash
+cd api
 cp .env.example .env
-# 编辑 .env，填入服务器环境变量，尤其是 DASHSCOPE_API_KEY
+# 编辑 .env
 
 docker compose up -d --build
 ```
 
-默认将前端容器暴露到宿主机 `8080` 端口：
+`api/docker-compose.yml` 会：
 
-```text
-http://服务器IP:8080
+- 暴露 `8000:8000`
+- 挂载外部 Docker 网络 `1panel-network`
+- 使用 `host.docker.internal:host-gateway` 保持与 spider 类似的主机访问方式
+
+## Spider 说明
+
+spider 负责采集猫眼正在热映电影并写入 MySQL 表 `maoyan_film`。
+
+首次部署前复制配置模板：
+
+```bash
+cd spider/volumes
+cp config.example.ini config.ini
 ```
 
-你可以在 1Panel 里使用「容器编排 / Compose」导入本仓库的 `docker-compose.yml`，并在环境变量中配置 `.env` 对应内容。随后把网站域名 `pickora.ansion.top` 反向代理到宿主机 `8080` 端口。
+然后编辑 `config.ini`，填入 MySQL 和采集配置。`config.ini` 已被 `.gitignore` 忽略，不应提交。
 
-## 1Panel 自部署建议
+Docker 启动：
 
-1. 在服务器安装并登录 1Panel。
-2. 准备域名 DNS：将 `pickora.ansion.top` 解析到服务器。
-3. 在 1Panel 中创建 Compose 编排，使用本项目的 `docker-compose.yml`。
-4. 配置环境变量，不要把真实 Key 写入仓库。
-5. 启动编排，确认容器正常运行。
-6. 创建网站 / 反向代理，把 `pickora.ansion.top` 指向 `http://127.0.0.1:8080`。
-7. 配置 HTTPS 证书。
-8. 访问 `https://pickora.ansion.top/health` 检查 API 健康状态。
+```bash
+cd spider
+docker compose up -d --build
+```
 
-## API 防滥用策略
+核心字段：
 
-首版无登录，因此防护是低摩擦方案，不是绝对防刷：
+- `movieid`
+- `name`
+- `detail_url`
+- `poster`
+- `type`
+- `actors`
+- `release_date`
+- `score`
+- `ticket_buy`
+- `state`
 
-- Key 仅保存在服务端环境变量
-- 前端不能传任意 prompt
-- API 只接受固定分类：`food`、`play`、`movie`
-- 请求体大小限制
-- CORS 只允许配置的前端域名和本地开发域名
-- 每 IP 默认 5 次/分钟、30 次/小时
+API 使用这些字段展示电影卡牌和详情。
 
-如果上线后仍出现明显滥用，可以继续加 Cloudflare Turnstile、网关限流或登录鉴权。
+## 安全与发布前检查
 
-## 构建检查
+发布到 GitHub 前请确认：
+
+- 不提交真实 `.env`。
+- 不提交 spider 的真实 `config.ini`。
+- 不提交 `node_modules/`、`dist/`、`__pycache__/`、日志文件。
+- 不提交数据库密码、DashScope Key、生产 Token。
+
+建议检查：
 
 ```bash
 cd frontend
@@ -141,18 +158,9 @@ python -m compileall app
 ```
 
 ```bash
+cd api
 docker compose config
 ```
-
-## 页脚信息
-
-页面底部展示：
-
-```text
-暗蚀工研科技 · 专业全栈技术服务 | © 2026 ansion.top · 保留所有权利 | 浙ICP备2025172295号-1
-```
-
-公司名称链接到 <https://www.ansion.top/>。
 
 ## License
 

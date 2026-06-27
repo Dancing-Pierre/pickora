@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import type { ChoiceCardSet, ChoiceSource } from '../types/choice'
+import type { ChoiceCardSet, ChoiceSource, MovieOptionItem } from '../types/choice'
 
 const STORAGE_KEY = 'pickora:history:v1'
 const MAX_HISTORY = 5
@@ -16,7 +16,33 @@ export function createCardSetSignature(source: ChoiceSource, options: string[]):
 }
 
 function isChoiceSource(value: unknown): value is ChoiceSource {
-  return value === 'manual' || value === 'food' || value === 'play' || value === 'movie'
+  return value === 'manual' || value === 'food' || value === 'play' || value === 'movie' || value === 'drink'
+}
+
+function normalizeMovieItems(value: unknown): MovieOptionItem[] | undefined {
+  if (!Array.isArray(value)) return undefined
+
+  const items = value
+    .map((item): MovieOptionItem | null => {
+      if (!item || typeof item !== 'object') return null
+
+      const candidate = item as Record<string, unknown>
+      if (typeof candidate.label !== 'string' || !candidate.label.trim()) return null
+
+      return {
+        label: candidate.label.trim(),
+        movieId: typeof candidate.movieId === 'string' ? candidate.movieId : null,
+        poster: typeof candidate.poster === 'string' ? candidate.poster : null,
+        type: typeof candidate.type === 'string' ? candidate.type : null,
+        actors: typeof candidate.actors === 'string' ? candidate.actors : null,
+        releaseDate: typeof candidate.releaseDate === 'string' ? candidate.releaseDate : null,
+        score: typeof candidate.score === 'string' ? candidate.score : null,
+        detailUrl: typeof candidate.detailUrl === 'string' ? candidate.detailUrl : null
+      }
+    })
+    .filter((item): item is MovieOptionItem => Boolean(item))
+
+  return items.length ? items : undefined
 }
 
 function createId(): string {
@@ -36,7 +62,7 @@ function normalizeStoredCardSet(value: unknown): ChoiceCardSet | null {
   if (!options.length) return null
   if (!isChoiceSource(item.source) || !item.sourceLabel) return null
 
-  return {
+  const normalized: ChoiceCardSet = {
     id: typeof item.id === 'string' ? item.id : createId(),
     source: item.source,
     sourceLabel: item.sourceLabel,
@@ -44,6 +70,10 @@ function normalizeStoredCardSet(value: unknown): ChoiceCardSet | null {
     aiGenerated: Boolean(item.aiGenerated),
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString()
   }
+
+  const items = normalizeMovieItems(item.items)
+  if (items) normalized.items = items
+  return normalized
 }
 
 function readHistory(): ChoiceCardSet[] {

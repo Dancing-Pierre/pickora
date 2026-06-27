@@ -2,8 +2,8 @@
   <main class="app-shell">
     <section class="hero-card compact-hero">
       <div>
-        <p class="eyebrow">Pickora · 选择抽卡机</p>
-        <h1>别纠结了，抽一张。</h1>
+        <p class="eyebrow">一念 · 选择抽卡机</p>
+        <h1>一念之间，抽一张。</h1>
       </div>
       <p class="hero-copy">选一组卡，凭手感翻开今天的答案。</p>
     </section>
@@ -52,7 +52,7 @@
         </button>
       </div>
 
-      <div v-if="options.length" ref="deckRef" class="card-fan" :class="{ 'two-row': isTwoRowFan }">
+      <div v-if="options.length" ref="deckRef" class="card-fan" :class="{ 'two-row': isTwoRowFan, 'is-shuffling': isShuffling }">
         <button
           v-for="(option, index) in options"
           :key="`${option}-${index}`"
@@ -65,18 +65,20 @@
           }"
           :style="getCardStyle(index, options.length)"
           :disabled="Boolean(optionError) || isShuffling"
-          :aria-label="flippedIndex === index ? `已翻开：${option}` : `翻开第 ${index + 1} 张卡`"
-          @click="flipCard(index)"
+          :aria-label="getCardAriaLabel(option, index)"
+          @click="handleCardClick(index)"
         >
           <span class="card-inner">
             <span class="card-face card-back">
               <span class="card-corner top">P</span>
-              <span class="card-mark">Pickora</span>
+              <span class="card-mark">P</span>
               <span class="card-corner bottom">P</span>
             </span>
-            <span class="card-face card-front">
-              <small>你的选择</small>
-              <strong>{{ option }}</strong>
+            <span class="card-face card-front" :class="{ 'movie-card-front': Boolean(getMovieItem(index)?.poster) }" :style="getCardFrontStyle(index)">
+              <span v-if="getMovieItem(index)?.poster" class="movie-card-overlay" aria-hidden="true"></span>
+              <small>{{ getMovieItem(index) ? '正在热映' : '你的选择' }}</small>
+              <strong :class="{ 'movie-card-title': Boolean(getMovieItem(index)) }">{{ option }}</strong>
+              <span v-if="flippedIndex === index && getMovieItem(index)" class="movie-card-hint">再点看详情</span>
             </span>
           </span>
         </button>
@@ -93,7 +95,7 @@
     </section>
 
     <footer class="site-footer">
-      <a href="https://www.ansion.top/" target="_blank" rel="noreferrer">暗蚀工研科技 · 专业全栈技术服务</a>
+      <span>一念 · 把选择交给此刻</span>
       <span>|</span>
       <span>© 2026 ansion.top · 保留所有权利</span>
       <span>|</span>
@@ -177,27 +179,56 @@
         <button v-if="history.length" class="text-button danger" type="button" @click="clearHistory">清除历史</button>
       </section>
     </div>
+
+    <div v-if="movieDetailOpen && selectedMovieItem" class="drawer-backdrop" @click.self="movieDetailOpen = false">
+      <section class="bottom-drawer movie-detail-drawer" aria-labelledby="movie-detail-title">
+        <div class="drawer-heading">
+          <div>
+            <span id="movie-detail-title">电影详情</span>
+            <small>来自正在热映影片数据。</small>
+          </div>
+          <button class="icon-button" type="button" aria-label="关闭电影详情" @click="movieDetailOpen = false">
+            <X :size="18" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div class="movie-detail-card">
+          <img v-if="selectedMovieItem.poster" class="movie-detail-poster" :src="selectedMovieItem.poster" :alt="`${selectedMovieItem.label} 海报`" />
+          <div class="movie-detail-info">
+            <strong>{{ selectedMovieItem.label }}</strong>
+            <span v-if="selectedMovieItem.score" class="movie-score">评分 {{ selectedMovieItem.score }}</span>
+            <p v-if="selectedMovieItem.type">类型：{{ selectedMovieItem.type }}</p>
+            <p v-if="selectedMovieItem.actors">主演：{{ selectedMovieItem.actors }}</p>
+            <p v-if="selectedMovieItem.releaseDate">上映：{{ selectedMovieItem.releaseDate }}</p>
+            <a v-if="selectedMovieItem.detailUrl" class="movie-detail-link" :href="selectedMovieItem.detailUrl" target="_blank" rel="noreferrer">
+              查看猫眼详情
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import type { Component, StyleValue } from 'vue'
-import { Clapperboard, History, MapPin, PencilLine, Shuffle, Utensils, WalletCards, X } from 'lucide-vue-next'
+import { Clapperboard, Coffee, History, MapPin, PencilLine, Shuffle, Utensils, WalletCards, X } from 'lucide-vue-next'
 import { gsap } from 'gsap'
 import { generateOptions } from './lib/api'
 import { normalizeOptions, parseOptions, validateOptionCount } from './lib/choices'
 import { useChoiceHistory } from './composables/useChoiceHistory'
-import type { AiCategory, ChoiceCardSet, ChoiceSource } from './types/choice'
+import type { ChoiceCardSet, ChoiceSource, GeneratedCategory, MovieOptionItem } from './types/choice'
 
 type Scene = {
-  category: AiCategory
+  category: GeneratedCategory
   label: string
   icon: Component
 }
 
 const scenes: Scene[] = [
   { category: 'food', label: '吃什么', icon: Utensils },
+  { category: 'drink', label: '喝什么', icon: Coffee },
   { category: 'play', label: '去哪玩', icon: MapPin },
   { category: 'movie', label: '看什么', icon: Clapperboard }
 ]
@@ -205,13 +236,15 @@ const scenes: Scene[] = [
 const sourceLabels: Record<ChoiceSource, string> = {
   manual: '手动输入',
   food: '吃什么',
+  drink: '喝什么',
   play: '去哪玩',
-  movie: '看什么剧/电影'
+  movie: '看什么'
 }
 
 const rawOptions = ref('')
 const tagInput = ref('')
 const options = ref<string[]>([])
+const optionItems = ref<MovieOptionItem[]>([])
 const currentSource = ref<ChoiceSource>('manual')
 const currentAiGenerated = ref(false)
 const result = ref('')
@@ -222,6 +255,7 @@ const aiMessage = ref('')
 const aiMessageType = ref<'info' | 'error'>('info')
 const manualDrawerOpen = ref(false)
 const historyDrawerOpen = ref(false)
+const movieDetailOpen = ref(false)
 const deckRef = ref<HTMLElement | null>(null)
 
 const { history, addCardSet, clearHistory } = useChoiceHistory()
@@ -230,21 +264,35 @@ const optionError = computed(() => (options.value.length ? validateOptionCount(o
 const draftOptions = computed(() => parseOptions(rawOptions.value))
 const draftError = computed(() => (draftOptions.value.length ? validateOptionCount(draftOptions.value) : '先写 3 到 12 个选项。'))
 const isTwoRowFan = computed(() => options.value.length > 7)
+const selectedMovieItem = computed(() => (flippedIndex.value === null ? null : getMovieItem(flippedIndex.value)))
 const deckTitle = computed(() => (result.value ? `翻到了：${result.value}` : options.value.length ? '选一张翻开' : '准备你的卡牌'))
 const deckHint = computed(() => {
-  if (!options.value.length) return 'AI 生成或手动输入都可以。'
-  if (result.value) return '想再选一次就点右侧洗牌。'
+  if (!options.value.length) return '生成或手动输入都可以。'
+  if (result.value) return selectedMovieItem.value ? '想看详情再点卡牌，想再选一次就洗牌。' : '想再选一次就点右侧洗牌。'
   return `${options.value.length} 张卡已就位，凭手感点一张。`
 })
 const resultMessage = computed(() => {
   if (!options.value.length) return '先准备一组卡牌。'
-  if (result.value) return `这轮结果是「${result.value}」。`
+  if (result.value) return selectedMovieItem.value ? `这轮结果是「${result.value}」，再点卡牌看详情。` : `这轮结果是「${result.value}」。`
   return '点击任意一张牌，翻开后本轮会锁定结果。'
 })
+
+function getMovieItem(index: number): MovieOptionItem | null {
+  return optionItems.value[index] ?? null
+}
+
+function normalizeItemsForOptions(nextOptions: string[], items: MovieOptionItem[] = []): MovieOptionItem[] {
+  if (items.length === nextOptions.length) return [...items]
+
+  return nextOptions
+    .map((option) => items.find((item) => item.label === option) ?? null)
+    .filter((item): item is MovieOptionItem => Boolean(item))
+}
 
 function resetRound() {
   result.value = ''
   flippedIndex.value = null
+  movieDetailOpen.value = false
 }
 
 function saveCurrentCardSet() {
@@ -253,12 +301,14 @@ function saveCurrentCardSet() {
     source: currentSource.value,
     sourceLabel: sourceLabels[currentSource.value],
     options: [...options.value],
-    aiGenerated: currentAiGenerated.value
+    aiGenerated: currentAiGenerated.value,
+    items: optionItems.value.length ? [...optionItems.value] : undefined
   })
 }
 
-function setOptions(nextOptions: string[], source: ChoiceSource, aiGenerated: boolean, saveHistory = true) {
+function setOptions(nextOptions: string[], source: ChoiceSource, aiGenerated: boolean, saveHistory = true, items: MovieOptionItem[] = []) {
   options.value = normalizeOptions(nextOptions)
+  optionItems.value = normalizeItemsForOptions(options.value, items)
   currentSource.value = source
   currentAiGenerated.value = aiGenerated
   rawOptions.value = options.value.join(' ')
@@ -289,17 +339,17 @@ function applyManualOptions() {
   manualDrawerOpen.value = false
 }
 
-async function generateByCategory(category: AiCategory) {
+async function generateByCategory(category: GeneratedCategory) {
   isGenerating.value = true
-  aiMessage.value = '正在洗牌，AI 正在塞入 6 张卡…'
+  aiMessage.value = '正在洗牌，正在塞入 6 张卡…'
   aiMessageType.value = 'info'
   try {
     const data = await generateOptions(category)
-    setOptions(data.options, category, true)
+    setOptions(data.options, category, category !== 'movie', true, data.items)
     aiMessage.value = `${sourceLabels[category]} 已生成 6 张卡。`
     aiMessageType.value = 'info'
   } catch (error) {
-    aiMessage.value = error instanceof Error ? error.message : 'AI 生成暂时失败，可以先手动输入选项。'
+    aiMessage.value = error instanceof Error ? error.message : '生成选项暂时失败，可以先手动输入选项。'
     aiMessageType.value = 'error'
   } finally {
     isGenerating.value = false
@@ -330,10 +380,59 @@ function getCardStyle(index: number, total: number): StyleValue {
   }
 }
 
-function flipCard(index: number) {
-  if (optionError.value || isShuffling.value || flippedIndex.value !== null) return
-  flippedIndex.value = index
-  result.value = options.value[index]
+function getCardFrontStyle(index: number): StyleValue {
+  const movieItem = getMovieItem(index)
+  if (!movieItem?.poster) return {}
+  return {
+    '--movie-poster': `url("${movieItem.poster.replace(/"/g, '%22')}")`
+  }
+}
+
+function getCardAriaLabel(option: string, index: number): string {
+  if (flippedIndex.value === index && getMovieItem(index)) return `查看电影详情：${option}`
+  if (flippedIndex.value === index) return `已翻开：${option}`
+  return `翻开第 ${index + 1} 张卡`
+}
+
+function handleCardClick(index: number) {
+  if (optionError.value || isShuffling.value) return
+  if (flippedIndex.value === null) {
+    flippedIndex.value = index
+    result.value = options.value[index]
+    return
+  }
+
+  if (flippedIndex.value === index && getMovieItem(index)) {
+    movieDetailOpen.value = true
+  }
+}
+
+function readCardNumber(card: HTMLElement, name: string): number {
+  const raw = getComputedStyle(card).getPropertyValue(name).trim()
+  return Number.parseFloat(raw) || 0
+}
+
+function shuffleCurrentCards() {
+  const pairs = options.value.map((option, index) => ({
+    option,
+    item: optionItems.value[index]
+  }))
+
+  for (let index = pairs.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    const current = pairs[index]
+    pairs[index] = pairs[swapIndex]
+    pairs[swapIndex] = current
+  }
+
+  options.value = pairs.map((pair) => pair.option)
+  optionItems.value = pairs.map((pair) => pair.item).filter((item): item is MovieOptionItem => Boolean(item))
+}
+
+function wait(duration: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, duration)
+  })
 }
 
 async function shuffleDeck() {
@@ -351,33 +450,51 @@ async function shuffleDeck() {
     '--card-scale': 1
   })
 
-  const timeline = gsap.timeline()
-  timeline
-    .to(cards, {
-      '--shuffle-x': () => `${gsap.utils.random(-18, 18)}px`,
-      '--shuffle-y': () => `${gsap.utils.random(-26, 20)}px`,
-      '--shuffle-rotate': () => `${gsap.utils.random(-18, 18)}deg`,
-      '--card-scale': 0.82,
-      duration: 0.22,
-      stagger: 0.018,
-      ease: 'power2.inOut'
-    })
-    .to(cards, {
-      '--shuffle-x': '0px',
-      '--shuffle-y': '0px',
-      '--shuffle-rotate': '0deg',
-      '--card-scale': 1,
-      duration: 0.34,
-      stagger: 0.018,
-      ease: 'back.out(1.9)'
-    })
+  await gsap.to(cards, {
+    '--shuffle-x': (_index: number, card: HTMLElement) => `${-readCardNumber(card, '--card-x')}px`,
+    '--shuffle-y': (_index: number, card: HTMLElement) => `${-readCardNumber(card, '--card-y') + 34}px`,
+    '--shuffle-rotate': (_index: number, card: HTMLElement) => `${-readCardNumber(card, '--card-rotate')}deg`,
+    duration: 0.38,
+    ease: 'power2.inOut',
+    stagger: 0,
+    overwrite: 'auto'
+  })
 
-  await timeline.then()
+  await wait(500)
+  shuffleCurrentCards()
+  await nextTick()
+
+  const nextCards = Array.from(deckRef.value?.querySelectorAll<HTMLElement>('.choice-card') ?? [])
+  gsap.killTweensOf(nextCards)
+  gsap.set(nextCards, {
+    '--shuffle-x': (_index: number, card: HTMLElement) => `${-readCardNumber(card, '--card-x')}px`,
+    '--shuffle-y': (_index: number, card: HTMLElement) => `${-readCardNumber(card, '--card-y') + 34}px`,
+    '--shuffle-rotate': (_index: number, card: HTMLElement) => `${-readCardNumber(card, '--card-rotate')}deg`,
+    '--card-scale': 1
+  })
+
+  await gsap.to(nextCards, {
+    '--shuffle-x': '0px',
+    '--shuffle-y': '0px',
+    '--shuffle-rotate': '0deg',
+    duration: 0.28,
+    ease: 'linear',
+    stagger: 0,
+    overwrite: 'auto'
+  })
+
+  gsap.killTweensOf(nextCards)
+  gsap.set(nextCards, {
+    '--shuffle-x': '0px',
+    '--shuffle-y': '0px',
+    '--shuffle-rotate': '0deg',
+    '--card-scale': 1
+  })
   isShuffling.value = false
 }
 
 function reuseCardSet(cardSet: ChoiceCardSet) {
-  setOptions(cardSet.options, cardSet.source, cardSet.aiGenerated)
+  setOptions(cardSet.options, cardSet.source, cardSet.aiGenerated, true, cardSet.items)
   aiMessage.value = `已复用「${cardSet.sourceLabel}」这组卡。`
   aiMessageType.value = 'info'
   historyDrawerOpen.value = false
